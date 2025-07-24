@@ -73,7 +73,7 @@
 			/>
 			<div class="hidden sm:block">
 				<h1 class="font-bold text-gray-900">Traintemp Difflogger</h1>
-				<p class="text-xs text-gray-600">2025 Monitoring Suhu System By Anastasya Nisfi S</p>
+				<p class="text-xs text-gray-600">2025 Temperature Monitoring System By Anastasya Nisfi S</p>
 			</div>
 		</div>
 
