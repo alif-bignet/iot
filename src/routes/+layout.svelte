@@ -82,7 +82,7 @@
 			</div>
 		</div>
 
-		<nav class="hidden items-center gap-2 md:flex">
+		<!-- <nav class="hidden items-center gap-2 md:flex">
 			<button
 				on:click={() => navigate('/')}
 				class="rounded-lg px-4 py-2 font-semibold text-gray-700 hover:bg-white/60"
@@ -95,7 +95,7 @@
 			>
 				History
 			</button>
-		</nav>
+		</nav> -->
 
 		<div class="flex items-center gap-3">
 			{#if browser}
