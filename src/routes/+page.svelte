@@ -1,14 +1,10 @@
 <script>
-	// Your entire <script> block remains exactly the same.
 	import { onMount, onDestroy } from 'svelte';
 	import { recordings } from '$lib/stores.js';
-	import MinMax from '$lib/components/MinMax.svelte';
-	import TemperatureChart from '$lib/components/TemperatureChart.svelte';
 	import { fade } from 'svelte/transition';
 
 	const esp32Ip = '192.168.4.1';
-	const MOCK_MODE = true;
-	const LIVE_DATA_HISTORY_LIMIT = 50;
+	const MOCK_MODE = false;
 	let sensorData = null;
 	let error = null;
 	let isLoading = true;
@@ -16,20 +12,7 @@
 	let isSwitching = false;
 	let trainsetNumber = '';
 	let trainName = '';
-	let liveDataHistory = [];
-	const updateLiveDataHistory = () => {
-		if (!sensorData) return;
-		const newPoint = {
-			timestamp: new Date(),
-			sensorTemp: sensorData.sensor,
-			hdcTemp: sensorData.hdc1080
-		};
-		const updatedHistory = [...liveDataHistory, newPoint];
-		if (updatedHistory.length > LIVE_DATA_HISTORY_LIMIT) {
-			updatedHistory.shift();
-		}
-		liveDataHistory = updatedHistory;
-	};
+
 	const fetchSensorData = async () => {
 		if (MOCK_MODE) {
 			if (!sensorData) {
@@ -42,7 +25,6 @@
 			sensorData.selisih = parseFloat((sensorData.sensor - sensorData.hdc1080).toFixed(2));
 			isLoading = false;
 			error = null;
-			updateLiveDataHistory();
 			return;
 		}
 		try {
@@ -50,7 +32,6 @@
 			if (!response.ok) throw new Error('Network response was not OK');
 			sensorData = await response.json();
 			error = null;
-			updateLiveDataHistory();
 		} catch (err) {
 			console.error('Fetch error:', err);
 			error =
@@ -59,10 +40,10 @@
 			isLoading = false;
 		}
 	};
+
 	const switchMode = async (newMode) => {
 		if (sensorData?.mode === newMode || isSwitching) return;
 		isSwitching = true;
-		liveDataHistory = [];
 		if (MOCK_MODE) {
 			setTimeout(() => {
 				sensorData.mode = newMode;
@@ -83,7 +64,8 @@
 			isSwitching = false;
 		}
 	};
-	const recordData = () => {
+
+	const recordData = async () => {
 		if (!sensorData || !trainsetNumber || !trainName) {
 			alert('Please fill in both No. Trainset and Nama Kereta before recording.');
 			return;
@@ -97,12 +79,18 @@
 			hdcTemp: sensorData.hdc1080,
 			difference: sensorData.selisih
 		};
-		recordings.update((currentRecords) => [newRecord, ...currentRecords]);
+		await recordings.update((currentRecords) => [newRecord, ...currentRecords]);
 	};
+
+    const handleDelete = (timestamp) => {
+        recordings.deleteRecording(timestamp);
+    };
+
 	onMount(() => {
 		fetchSensorData();
 		pollingInterval = setInterval(fetchSensorData, 2000);
 	});
+
 	onDestroy(() => {
 		clearInterval(pollingInterval);
 	});
@@ -116,11 +104,11 @@
 	class="rounded-xl border border-white/20 bg-white/50 p-2 shadow-lg shadow-black/5 backdrop-blur-lg sm:p-6"
 >
 	{#if isLoading}
-		<div class="flex min-h-[60vh] items-center justify-center">
+		<div class="flex min-h-[20vh] items-center justify-center">
 			<p class="text-lg text-gray-700">Connecting to ESP32...</p>
 		</div>
 	{:else if error}
-		<div class="flex min-h-[60vh] items-center justify-center">
+		<div class="flex min-h-[20vh] items-center justify-center">
 			<p class="text-lg font-semibold text-red-700">{error}</p>
 		</div>
 	{:else if sensorData}
@@ -143,10 +131,6 @@
 							<p class="mt-1 text-4xl font-bold">{sensorData.selisih.toFixed(2)} °C</p>
 						</div>
 					</div>
-
-					<div class="min-h-[400px] h-full rounded-lg bg-white/60 p-4 shadow-sm sm:p-6">
-						<TemperatureChart data={liveDataHistory} />
-					</div>
 				</div>
 
 				<div class="flex flex-col gap-6 lg:col-span-1">
@@ -157,7 +141,7 @@
 						{:else}
 							<div class="grid grid-cols-2 gap-4">
 								<button
-									class="rounded-lg py-3 font-semibold transition-all"
+									class="rounded-lg py-3 font-semibold transition-all active:scale-95"
 									class:bg-blue-600={sensorData.mode === 'ntc'}
 									class:text-white={sensorData.mode === 'ntc'}
 									class:shadow-lg={sensorData.mode === 'ntc'}
@@ -166,7 +150,7 @@
 									on:click={() => switchMode('ntc')}>NTC</button
 								>
 								<button
-									class="rounded-lg py-3 font-semibold transition-all"
+									class="rounded-lg py-3 font-semibold transition-all active:scale-95"
 									class:bg-blue-600={sensorData.mode === 'pt1000'}
 									class:text-white={sensorData.mode === 'pt1000'}
 									class:shadow-lg={sensorData.mode === 'pt1000'}
@@ -194,18 +178,60 @@
 								class="w-full rounded-lg border-none p-3 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-500"
 							/>
 							<button
-								class="w-full rounded-lg bg-green-600 p-3 font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:bg-gray-400"
+								class="w-full rounded-lg bg-green-600 p-3 font-semibold text-white shadow-sm transition-all hover:bg-green-700 disabled:bg-gray-400 active:scale-95"
 								on:click={recordData}
 								disabled={isSwitching}>Record</button
 							>
 						</div>
 					</div>
-
-					<div class="rounded-lg bg-white/60 p-6 shadow-sm">
-						<MinMax data={$recordings} />
-					</div>
 				</div>
 			</div>
 		</div>
 	{/if}
+</div>
+
+<div class="container mx-auto p-4 sm:p-6">
+    {#if $recordings && $recordings.length > 0}
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-600 uppercase text-sm">
+                        <th class="py-3 px-5 text-left">Timestamp</th>
+                        <th class="py-3 px-5 text-left">No. Trainset</th>
+                        <th class="py-3 px-5 text-left">Nama Kereta</th>
+                        <th class="py-3 px-5 text-left">Sensor Mode</th>
+                        <th class="py-3 px-5 text-right">Sensor Temp</th>
+                        <th class="py-3 px-5 text-right">Pembanding</th>
+                        <th class="py-3 px-5 text-right">Selisih</th>
+                        <th class="py-3 px-5 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700">
+                    {#each $recordings as record (record.timestamp)}
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="py-3 px-5 text-left whitespace-nowrap">{new Date(record.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' })}</td>
+                            <td class="py-3 px-5 text-left">{record.trainset}</td>
+                            <td class="py-3 px-5 text-left">{record.name}</td>
+                            <td class="py-3 px-5 text-left">{record.mode.toUpperCase()}</td>
+                            <td class="py-3 px-5 text-right font-mono">{record.sensorTemp.toFixed(2)} °C</td>
+                            <td class="py-3 px-5 text-right font-mono">{record.hdcTemp.toFixed(2)} °C</td>
+                            <td class="py-3 px-5 text-right font-mono font-semibold">{record.difference.toFixed(2)} °C</td>
+                            <td class="py-3 px-5 text-center">
+                                <button on:click={() => handleDelete(record.timestamp)} aria-label="Delete record" class="p-2 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-all active:scale-90 active:bg-red-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+        </div>
+
+    {:else}
+        <div class="text-center py-12">
+            <p class="text-gray-500 text-lg">No data has been recorded yet.</p>
+        </div>
+    {/if}
 </div>
